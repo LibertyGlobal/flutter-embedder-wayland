@@ -103,8 +103,12 @@ const wl_registry_listener WaylandDisplay::kRegistryListener = {
       }
 
       if (strcmp(interface, wp_presentation_interface.name) == 0) {
-        wd->presentation_ = static_cast<decltype(presentation_)>(wl_registry_bind(wl_registry, name, &wp_presentation_interface, 1));
-        wp_presentation_add_listener(wd->presentation_, &kPresentationListener, wd);
+        int use_presentation_timing_interface = getEnv("FLUTTER_LAUNCHER_USE_PRESENTATION_INTERFACE", 1);
+        dbgI("launcher: use wayland presentation timing interface: %d\n", use_presentation_timing_interface);
+        if (use_presentation_timing_interface) {
+          wd->presentation_ = static_cast<decltype(presentation_)>(wl_registry_bind(wl_registry, name, &wp_presentation_interface, 1));
+          wp_presentation_add_listener(wd->presentation_, &kPresentationListener, wd);
+        }
         return;
       }
 
@@ -558,6 +562,7 @@ bool WaylandDisplay::SetupEngine(const std::string &bundle_path, const std::vect
 
     DBG_TIMING(static auto tprev = FlutterEngineGetCurrentTime(); auto tb = FlutterEngineGetCurrentTime(); dbgI("[%09.4f][%ld] >>> swap buffer [%09.4f]\n", (tb - t00) / 1e9, gettid(), (tb - tprev) / 1e9););
 
+    eglSwapInterval(wd->egl_display_, 0);
     if (eglSwapBuffers(wd->egl_display_, wd->egl_surface_) != EGL_TRUE) {
       LogLastEGLError();
       dbgE("Could not swap the EGL buffer\n");
@@ -648,6 +653,10 @@ bool WaylandDisplay::SetupEngine(const std::string &bundle_path, const std::vect
         return nullptr;
       },
   };
+
+  if (getEnv("FLUTTER_LAUNCHER_USE_PRESENTATION_INTERFACE", 1) == 0) {
+    args.vsync_callback = nullptr;
+  }
 
   std::string libapp_aot_path = bundle_path + "/" + FlutterGetAppAotElfName(); // dw: TODO: There seems to be no convention name we could use, so let's temporary hardcode the path.
 

@@ -37,6 +37,16 @@ template <> double getEnv(char const *variable, double default_value) {
   return atof(val.c_str());
 }
 
+template <> int getEnv(char const *variable, int default_value) {
+  std::string val = getEnv(variable, std::string(""));
+
+  if (val.empty()) {
+    return default_value;
+  }
+
+  return atoi(val.c_str());
+}
+
 std::string GetICUDataPath() {
   auto base_directory = GetExecutableDirectory();
   if (base_directory == "") {
